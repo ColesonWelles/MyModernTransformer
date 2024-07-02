@@ -44,3 +44,20 @@ class Transformer(nn.Module): # Defines the whole of the model, except for Softm
         self.freqs_complex = precompute_theta_pos_frequencies(self.args.dim // self.args.n_heads, 
                                                               self.args.max_seq_len * 2, device=self.args.device)
         
+        def forward(self, tokens: torch.Tensor, start_pos: int):
+            # (Batch, seq_len)
+            batch_size, seq_len = tokens.shape
+            assert seq_len ==1, "Only one token at a time can be processed"
+
+            # (Batch, seq_len) -> (Batch, seq_len, Dim)
+            h = self.tok_embeddings(tokens)
+
+            # Retrieve the pairs (m, theta) corresponding to the positions [start_pos, start_pos + seq_len]
+            freqs_complex = self.freqs_complex[start_pos:start_pos + seq_len]
+
+            # Consecutively apply all the encoder layers
+            for layer in self.layers:
+                    h = layer(h, start_pos, freqs_complex)
+            h = self.norm(h)
+            output = self.output(h).float()
+            return output
