@@ -22,6 +22,25 @@ class ModelArgs:
 
     device: str = None
 
+
+class RMSNorm(nn.Module):
+     
+    def __init__(self, dim: int, eps: float = 1e-6):
+        super().__init__()
+        self.eps = eps
+        # The gamma parameter
+        self.weight = nn.Parameter(torch.ones(dim))
+
+    def _norm(self, x: torch.Tensore):
+        # (batch, seq_len, dim) * (batch, seq_len, 1) = (batch, seq_len, dim))
+        # rsqrt: 1 / sqrt(x)
+        return x * torch.rsqrt(x.pw(2).mean(-1, keepdim=True) + self.eps)
+
+    def forward(self, x: torch.Tensor):
+        # (dim) * (batch, seq_len, dim) = (batch, seq_len, dim)
+        return self.weight * self._norm(x.float()).type_as(x)
+
+
 class Transformer(nn.Module): # Defines the whole of the model, except for Softmax
     
     def __init__(self, args: ModelArgs) -> None: 
