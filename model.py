@@ -51,7 +51,9 @@ def apply_rotary_embeddings(x: torch.Tensor, freqs_complex: torch.Tensor, device
     x_rotated = x_complex * freqs_complex
     # (batch, seq_len, h, head_dim / 2) -> (batch, seq_len, h, head_dim / 2, 2)
     x_out = torch.view_as_real(x_rotated)
+    # (batch, seq_len, h, head_dim / 2, 2) -> (batch, seq_len, h, head_dim)
     x_out = x_out.reshape(*x.shape)
+    return x_out.type_as(x).to(device)
 
 
 class RMSNorm(nn.Module):
