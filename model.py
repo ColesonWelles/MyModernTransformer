@@ -84,7 +84,18 @@ class FeedForward(nn.Module):
         if args.ffn_dim_multiplier is not None:
             hidden_dim = int(args.ffn_dim_multiplier * hidden_dim)
         # Round the hidden_dim to the nearest multiple of the multiple of parameter
+        hidden = args.multiple_of * ((hidden + args.multiple_of - 1) // args.multiple_of)
         
+        self.w1 = nn.Linear(args.dim, hidden_dim, bias=False)
+        self.w2 = nn.Linear(hidden_dim, args.dim, bias=False)
+        self.w3 = nn.Linear(args.dim, hidden_dim, bias=False)
+
+    def forward(self, x: torch.Tensor):
+        swish = F.silu(self.w1(x))
+        x_V = self.w3(x)
+        x = swish * x_V
+        x = self.w2(x)
+        return x
 
 
 class EncoderBlock(nn.Module):
