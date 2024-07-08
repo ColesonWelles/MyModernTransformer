@@ -96,6 +96,30 @@ class FeedForward(nn.Module):
         x = swish * x_V
         x = self.w2(x)
         return x
+    
+
+class SelfAttention(nn.Module):
+
+    def __init__(self, args: ModelArgs):
+        super().__init__()
+
+        # Parallelism removed since I personally don't own a multi-GPU compute setup
+        # Indicates the number of heads for the keys and values
+        self.n_kv_heads = args.n_heads if args.n_kv_heads is None else args.n_kv_heads
+        # Indicates the number of heads for the queries
+        self.n_heads_q = args.n_heads
+        # Indicates how many times the keys and values should be repeated to match the head of the queries
+        self.n_rep = self.n_heads_q //self.n_kv_heads
+        # Indicates the dimension of each head
+        self.head_dim = args.dim // args.n_heads 
+
+        self.wq = nn.Linear(args.dim, args.n_heads * self.head_dim, bias=False)
+        self.wk = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+        self.wv = nn.Linear(args.dim, self.n_kv_heads * self.head_dim, bias=False)
+        self.wo = nn.Linear(arsg.heads * self.head_dim, args.dim, bias=False)
+
+        self.cache_k = torch.zeros(args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim)
+        self.cache_v = torch.zeros(args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim)
 
 
 class EncoderBlock(nn.Module):
