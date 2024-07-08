@@ -121,6 +121,30 @@ class SelfAttention(nn.Module):
         self.cache_k = torch.zeros(args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim)
         self.cache_v = torch.zeros(args.max_batch_size, args.max_seq_len, self.n_kv_heads, self.head_dim)
 
+    def forward(self, x: torch.Tensor, start_pos: int, freqs_complex: torch.Tensor):
+        batch_size, seq_len, _ = x.shape # (batch, seq_len=1, dim)
+
+        # Apply the Wq, Wk, and Wv matrices to queries, keys, and values
+        # (batch, seq_len=1, dim) -> (batch, seq_len=1, h_q * head_dim)
+        xq = self.wq(x)
+        # (batch, seq_len=1, dim) -> (batch, seq_len=1, h_kv * head dim)
+        xk = self.wk(x)
+        xv = self.wv(x)
+
+        # (batch, seq_len=1, h_q * head_dim) -> (batch, seq_len=1, h_q, head_dim)
+        xq = xq.view(batch_size, seq_len, self.n_heads_q, self.head_dim)
+        xk = xk.view(batch_size, seq_len, self.n_kv_heads, self.head_dim)
+        # (batch, seq_len=1, h_kv * head_dim) -> (batch, seq_len=1, h_kv, head_dim)
+        xv = xv.view(batch_size, seq_len, self.n_kv_heads, self.head_dim)
+
+        # This operation does not change the shape of the tensors
+        xq = apply_rotary_embeddings(xq, freqs_complex, device=x.device)
+        xk = apply_rotary_embeddings(xk, freqs_complex, device=x.device)
+
+        # Replace the entry in the cache for this token
+        self.cache_k[:batch_size, start_pos:start_pos+seq_len] = xk
+        self.cache_v[:batch_size, start_pos:start_pos+seq_len] = xv 
+
 
 class EncoderBlock(nn.Module):
 
